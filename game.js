@@ -3,12 +3,16 @@
 const $ = id => document.getElementById(id);
 const STORAGE_KEY='gpuMiningSaveV2';
 const OLD_KEY='gpuMiningSave';
-const defaults={version:2,coins:1250,btc:0,eth:0,running:true,gpus:[1,1,0,0],cooling:0,psu:0,software:0,eco:0,last:Date.now(),dailyClaim:0,streak:0,claimed:[],stats:{earned:0,seconds:0},started:Date.now()};
+const defaults={version:3,coins:250,btc:0,eth:0,running:true,gpus:[0,1,0,0,0,0,0,0],cooling:0,psu:0,software:0,eco:0,last:Date.now(),dailyClaim:0,streak:0,claimed:[],stats:{earned:0,seconds:0},started:Date.now()};
 const gpuTypes=[
-{name:'RX 6600',desc:'28 MH/s · 95 W · стартовая видеокарта',hash:28,watts:95,temp:59,cost:650,icon:'▰'},
+{name:'GT 710',desc:'2 MH/s · 19 W · самая дешёвая карта',hash:2,watts:19,temp:42,cost:60,icon:'▰'},
+{name:'GTX 750 Ti',desc:'8 MH/s · 60 W · бюджетная стартовая карта',hash:8,watts:60,temp:48,cost:150,icon:'▰'},
+{name:'GTX 1050 Ti',desc:'12 MH/s · 75 W · экономичная карта',hash:12,watts:75,temp:50,cost:260,icon:'▰'},
+{name:'GTX 1650',desc:'18 MH/s · 75 W · недорогой апгрейд',hash:18,watts:75,temp:53,cost:420,icon:'▰'},
+{name:'RX 6600',desc:'28 MH/s · 95 W · средний уровень',hash:28,watts:95,temp:59,cost:650,icon:'▰'},
 {name:'RTX 3060',desc:'42 MH/s · 125 W · сбалансированная',hash:42,watts:125,temp:63,cost:1250,icon:'▰'},
 {name:'RTX 4070',desc:'62 MH/s · 160 W · высокая эффективность',hash:62,watts:160,temp:65,cost:2800,icon:'▰'},
-{name:'RX 7900 XTX',desc:'92 MH/s · 280 W · мощный риг',hash:92,watts:280,temp:72,cost:5200,icon:'▰'}];
+{name:'RX 7900 XTX',desc:'92 MH/s · 280 W · топовая видеокарта',hash:92,watts:280,temp:72,cost:5200,icon:'▰'}];
 const missionDefs=[
 {id:'first_gpu',icon:'🖥',title:'Майнер-новичок',desc:'Установи хотя бы 1 видеокарту.',reward:150,done:s=>countGPU(s)>0},
 {id:'hash_100',icon:'⚡',title:'Серьёзная мощность',desc:'Достигни 100 MH/s общего хешрейта.',reward:300,done:s=>calcHash(s)>=100},
@@ -17,7 +21,7 @@ const missionDefs=[
 {id:'rich',icon:'💰',title:'Первый капитал',desc:'Накопи 2 500 GCOIN.',reward:350,done:s=>s.coins>=2500}
 ];
 function safeNum(v,fallback=0){return Number.isFinite(Number(v))?Math.max(0,Number(v)):fallback;}
-function normalize(s){const x={...defaults,...s};x.gpus=Array.isArray(s.gpus)&&s.gpus.length===4?s.gpus.map(v=>Math.floor(safeNum(v))):defaults.gpus.slice();for(const k of ['coins','btc','eth','cooling','psu','software','eco','dailyClaim','streak'])x[k]=safeNum(x[k]);x.running=s.running!==false;x.claimed=Array.isArray(s.claimed)?s.claimed.filter(v=>typeof v==='string'):[];x.stats={...defaults.stats,...(s.stats||{})};x.last=safeNum(s.last,Date.now());return x;}
+function normalize(s){const x={...defaults,...s};if(Array.isArray(s.gpus)&&s.gpus.length===8){x.gpus=s.gpus.map(v=>Math.floor(safeNum(v)));}else if(Array.isArray(s.gpus)&&s.gpus.length===4){const old=s.gpus.map(v=>Math.floor(safeNum(v)));x.gpus=[0,0,0,0,old[0],old[1],old[2],old[3]];}else{x.gpus=defaults.gpus.slice();}x.version=3;for(const k of ['coins','btc','eth','cooling','psu','software','eco','dailyClaim','streak'])x[k]=safeNum(x[k]);x.running=s.running!==false;x.claimed=Array.isArray(s.claimed)?s.claimed.filter(v=>typeof v==='string'):[];x.stats={...defaults.stats,...(s.stats||{})};x.last=safeNum(s.last,Date.now());return x;}
 function load(){try{const a=localStorage.getItem(STORAGE_KEY)||localStorage.getItem(OLD_KEY);if(a)return normalize(JSON.parse(a));}catch(e){}return normalize(defaults);}
 let state=load(),lastTick=Date.now(),toastTimer=null;
 function n(v,d=2){return Number(v).toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});}
@@ -46,7 +50,7 @@ function dayKey(t){const d=new Date(t);return d.getFullYear()+'-'+d.getMonth()+'
 $('dailyBtn').addEventListener('click',()=>{const today=dayKey(Date.now());if(dayKey(state.dailyClaim)===today)return toast('Бонус уже получен');const yesterday=dayKey(Date.now()-86400000);state.streak=dayKey(state.dailyClaim)===yesterday?state.streak+1:1;const reward=100+Math.min(7,state.streak-1)*50;state.dailyClaim=Date.now();state.coins+=reward;state.stats.earned+=reward;save();render();toast('Ежедневный бонус: +'+reward+' GCOIN');});
 $('exportSave').addEventListener('click',()=>{try{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='gpu-mining-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Резервная копия сохранена в файл');}catch(e){toast('Не удалось экспортировать сохранение');}});
 $('importSave').addEventListener('click',()=>$('importFile').click());
-$('importFile').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const parsed=JSON.parse(await f.text());if(!parsed||!Array.isArray(parsed.gpus)||parsed.gpus.length!==4)throw new Error('bad save');state=normalize(parsed);save();render();toast('Сохранение импортировано');}catch(err){toast('Файл сохранения не распознан');}e.target.value='';});
+$('importFile').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const parsed=JSON.parse(await f.text());if(!parsed||!Array.isArray(parsed.gpus)||![4,8].includes(parsed.gpus.length))throw new Error('bad save');state=normalize(parsed);save();render();toast('Сохранение импортировано');}catch(err){toast('Файл сохранения не распознан');}e.target.value='';});
 $('resetSave').addEventListener('click',()=>{if(!confirm('Точно начать заново? Текущий прогресс будет удалён с этого устройства.'))return;state=normalize({...defaults,last:Date.now(),started:Date.now()});try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(OLD_KEY);}catch(e){}save();render();switchTab('farm');toast('Новая ферма создана');});
 function accrue(seconds){if(seconds<=0||!state.running)return;const sec=Math.min(seconds,28800),r=hourly();state.btc+=r.btc*sec/3600;state.eth+=r.eth*sec/3600;state.coins=Math.max(0,state.coins+r.gcoin*sec/3600);state.stats.seconds+=sec;}
 function tick(){const now=Date.now(),seconds=Math.max(0,(now-lastTick)/1000);lastTick=now;accrue(seconds);render();save();}
