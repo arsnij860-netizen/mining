@@ -8,7 +8,7 @@
 <header class="topbar"><a class="brand" href="#farm" aria-label="GPU Mining Simulator"><span class="brand-icon">▦</span><span><strong>GPU MINING</strong><small>SIMULATOR / v2.0</small></span></a><div class="top-actions"><span class="save-state" id="saveState">● сохранено</span><button id="powerBtn" class="power">⏻ <span>ФЕРМА ВКЛ</span></button></div></header>
 <main>
 <section class="stats">
-<article class="stat"><span class="muted">БАЛАНС GCOIN</span><strong id="coins">1 250.00</strong><small>◆ внутриигровая валюта</small></article>
+<article class="stat"><span class="muted">БАЛАНС GCOIN</span><strong id="coins">250.00</strong><small>◆ внутриигровая валюта</small></article>
 <article class="stat"><span class="muted">BTC ДОБЫТО</span><strong id="btc">0.000000</strong><small>₿ игровой Bitcoin</small></article>
 <article class="stat"><span class="muted">ETH ДОБЫТО</span><strong id="eth">0.00000</strong><small>◆ игровой Ethereum</small></article>
 </section>
@@ -23,7 +23,7 @@
 </section>
 <section class="panel"><div class="section-head"><div><span class="eyebrow">БЫСТРЫЕ ДЕЙСТВИЯ</span><h2>Управление фермой</h2></div></div><div class="quick-actions"><button class="action-btn" data-goto="hardware">＋ Купить GPU</button><button class="action-btn" data-goto="upgrades">⚙ Улучшить ферму</button><button class="action-btn" data-goto="missions">✦ Задания</button></div></section>
 </section>
-<section id="tab-hardware" class="tab-page"><section class="panel"><div class="section-head"><div><span class="eyebrow">02 / ЖЕЛЕЗО</span><h2>Магазин оборудования</h2></div><span id="gpuCount" class="pill">2 GPU</span></div><p class="section-copy">Покупай видеокарты, чтобы повышать общий хешрейт. Чем мощнее карта, тем больше энергии она потребляет.</p><div id="shop" class="shop"></div></section></section>
+<section id="tab-hardware" class="tab-page"><section class="panel"><div class="section-head"><div><span class="eyebrow">02 / ЖЕЛЕЗО</span><h2>Магазин оборудования</h2></div><span id="gpuCount" class="pill">1 GPU</span></div><p class="section-copy">Начинай с дешёвых карт GT 710 и GTX 750 Ti, затем постепенно переходи к более мощным моделям. Чем мощнее карта, тем больше энергии она потребляет.</p><div id="shop" class="shop"></div></section></section>
 <section id="tab-upgrades" class="tab-page"><section class="panel"><div class="section-head"><div><span class="eyebrow">03 / ОПТИМИЗАЦИЯ</span><h2>Улучшения фермы</h2></div></div><div class="upgrade-grid">
 <article class="upgrade"><div class="upgrade-icon">❄</div><div class="upgrade-info"><strong>Усиленное охлаждение</strong><p>Снижает температуру GPU на 8°C за уровень</p><small id="coolLevel">Уровень 0</small></div><button id="coolBtn" class="buy-btn">250 G</button></article>
 <article class="upgrade"><div class="upgrade-icon">⚡</div><div class="upgrade-info"><strong>Блок питания PRO</strong><p>Снижает расход энергии на 10% за уровень</p><small id="psuLevel">Уровень 0</small></div><button id="psuBtn" class="buy-btn">350 G</button></article>
