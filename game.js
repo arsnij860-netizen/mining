@@ -1,52 +1,57 @@
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
-const defaults = {coins:1250,btc:0,eth:0,running:true,gpus:[1,1,0,0],cooling:0,psu:0,software:0,last:Date.now()};
-const gpuTypes = [
+const STORAGE_KEY='gpuMiningSaveV2';
+const OLD_KEY='gpuMiningSave';
+const defaults={version:2,coins:1250,btc:0,eth:0,running:true,gpus:[1,1,0,0],cooling:0,psu:0,software:0,eco:0,last:Date.now(),dailyClaim:0,streak:0,claimed:[],stats:{earned:0,seconds:0},started:Date.now()};
+const gpuTypes=[
 {name:'RX 6600',desc:'28 MH/s · 95 W · стартовая видеокарта',hash:28,watts:95,temp:59,cost:650,icon:'▰'},
 {name:'RTX 3060',desc:'42 MH/s · 125 W · сбалансированная',hash:42,watts:125,temp:63,cost:1250,icon:'▰'},
 {name:'RTX 4070',desc:'62 MH/s · 160 W · высокая эффективность',hash:62,watts:160,temp:65,cost:2800,icon:'▰'},
 {name:'RX 7900 XTX',desc:'92 MH/s · 280 W · мощный риг',hash:92,watts:280,temp:72,cost:5200,icon:'▰'}];
-let state=load();
-function load(){try{const s=JSON.parse(localStorage.getItem('gpuMiningSave'));if(s&&Array.isArray(s.gpus))return {...defaults,...s};}catch(e){}return {...defaults,gpus:[1,1,0,0]};}
-function save(){state.last=Date.now();try{localStorage.setItem('gpuMiningSave',JSON.stringify(state));}catch(e){}}
+const missionDefs=[
+{id:'first_gpu',icon:'🖥',title:'Майнер-новичок',desc:'Установи хотя бы 1 видеокарту.',reward:150,done:s=>countGPU(s)>0},
+{id:'hash_100',icon:'⚡',title:'Серьёзная мощность',desc:'Достигни 100 MH/s общего хешрейта.',reward:300,done:s=>calcHash(s)>=100},
+{id:'four_gpu',icon:'🏭',title:'Мини-ферма',desc:'Собери ферму из 4 видеокарт.',reward:500,done:s=>countGPU(s)>=4},
+{id:'cooling',icon:'❄',title:'Холодный расчёт',desc:'Купи улучшение охлаждения.',reward:200,done:s=>s.cooling>=1},
+{id:'rich',icon:'💰',title:'Первый капитал',desc:'Накопи 2 500 GCOIN.',reward:350,done:s=>s.coins>=2500}
+];
+function safeNum(v,fallback=0){return Number.isFinite(Number(v))?Math.max(0,Number(v)):fallback;}
+function normalize(s){const x={...defaults,...s};x.gpus=Array.isArray(s.gpus)&&s.gpus.length===4?s.gpus.map(v=>Math.floor(safeNum(v))):defaults.gpus.slice();for(const k of ['coins','btc','eth','cooling','psu','software','eco','dailyClaim','streak'])x[k]=safeNum(x[k]);x.running=s.running!==false;x.claimed=Array.isArray(s.claimed)?s.claimed.filter(v=>typeof v==='string'):[];x.stats={...defaults.stats,...(s.stats||{})};x.last=safeNum(s.last,Date.now());return x;}
+function load(){try{const a=localStorage.getItem(STORAGE_KEY)||localStorage.getItem(OLD_KEY);if(a)return normalize(JSON.parse(a));}catch(e){}return normalize(defaults);}
+let state=load(),lastTick=Date.now(),toastTimer=null;
 function n(v,d=2){return Number(v).toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});}
-function total(field){return gpuTypes.reduce((s,g,i)=>s+g[field]*state.gpus[i],0);}
-function gpuCount(){return state.gpus.reduce((a,b)=>a+b,0);}
-function hash(){return total('hash')*(1+state.software*.15);}
-function watts(){return total('watts')*(1-state.psu*.1);}
-function temp(){return gpuCount()?Math.round(Math.max(28,total('temp')/gpuCount()-state.cooling*8+Math.max(0,gpuCount()-3)*2)):28;}
-function rateBTC(){return 2500000;} function rateETH(){return 145000;}
-function hourly(){const h=hash();return {btc:h*.00000000085,eth:h*.000000011,gcoin:h*.19-Math.max(0,watts())*.012};}
-function drawRigs(){
- const count=Math.max(1,Math.min(8,gpuCount()));$('rigs').innerHTML='';
- for(let i=0;i<count;i++){const g=gpuTypes[state.gpus.findIndex(v=>v>0)]||gpuTypes[0];const el=document.createElement('div');el.className='rig';
- el.innerHTML='<span class="rig-label">RIG-'+String(i+1).padStart(2,'0')+'</span><div class="gpu-board"><i class="fan"></i><i class="fan"></i></div><div class="gpu-board"><i class="fan"></i><i class="fan"></i></div><span class="rig-label">'+g.name+'</span><div class="rig-leds"><i></i><i></i><i></i></div>';$('rigs').appendChild(el);}
-}
+function countGPU(s=state){return s.gpus.reduce((a,b)=>a+b,0);}
+function total(field,s=state){return gpuTypes.reduce((sum,g,i)=>sum+g[field]*s.gpus[i],0);}
+function calcHash(s=state){return total('hash',s)*(1+s.software*.15);}
+function calcWatts(s=state){return total('watts',s)*Math.max(.45,1-s.psu*.1);}
+function calcTemp(s=state){return countGPU(s)?Math.round(Math.max(28,total('temp',s)/countGPU(s)-s.cooling*8+Math.max(0,countGPU(s)-3)*2)):28;}
+function hourly(s=state){const h=calcHash(s),w=calcWatts(s);return{btc:h*.00000000085,eth:h*.000000011,gcoin:h*.19-w*.012*(1-s.eco*.05)};}
+function save(){state.last=Date.now();try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));localStorage.setItem(OLD_KEY,JSON.stringify(state));$('saveState').textContent='● сохранено';}catch(e){$('saveState').textContent='● ошибка сохранения';}}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2300);}
+function switchTab(name){if(!$('tab-'+name))return;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('.tab-page').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));try{history.replaceState(null,'','#'+name);}catch(e){}window.scrollTo({top:0,behavior:'smooth'});}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.goto)));
+function drawRigs(){const container=$('rigs');container.innerHTML='';const totalCount=countGPU();const show=Math.min(8,totalCount);if(!show){container.innerHTML='<div class="empty-rig">Ферма пуста — открой «Оборудование» и купи первую видеокарту.</div>';return;}let index=0;state.gpus.forEach((qty,i)=>{for(let j=0;j<qty&&index<show;j++,index++){const el=document.createElement('div');el.className='rig'+(state.running?' running':'');el.innerHTML='<span class="rig-label">RIG-'+String(index+1).padStart(2,'0')+'</span><div class="gpu-board"><i class="fan"></i><i class="fan"></i></div><div class="gpu-board"><i class="fan"></i><i class="fan"></i></div><span class="rig-label">'+gpuTypes[i].name+'</span><div class="rig-leds"><i></i><i></i><i></i></div>';$('rigs').appendChild(el);}});if(totalCount>8){const more=document.createElement('div');more.className='rig rig-more';more.textContent='+'+(totalCount-8)+' GPU';container.appendChild(more);}}
 function renderShop(){$('shop').innerHTML='';gpuTypes.forEach((g,i)=>{const el=document.createElement('article');el.className='gpu-item';el.innerHTML='<div class="gpu-art">'+g.icon+'</div><div class="gpu-details"><strong>'+g.name+'</strong><small>'+g.desc+'<br>Установлено: '+state.gpus[i]+'</small></div><button class="buy-btn">'+n(g.cost,0)+' G</button>';const btn=el.querySelector('button');btn.disabled=state.coins<g.cost;btn.addEventListener('click',()=>buyGPU(i));$('shop').appendChild(el);});}
-function render(){
- $('coins').textContent=n(state.coins);$('btc').textContent=n(state.btc,6);$('eth').textContent=n(state.eth,5);
- $('hash').textContent=n(hash(),0)+' MH/s';$('watts').textContent=n(watts(),0)+' W';$('temp').textContent=temp()+'°C';
- const p=hourly().gcoin;$('profit').textContent=(p>=0?'+':'')+n(p)+' G';$('profit').className=p>=0?'green':'';
- $('gpuCount').textContent=gpuCount()+' GPU';$('status').textContent=state.running?'РАБОТАЕТ':'ВЫКЛЮЧЕНА';
- $('powerBtn').classList.toggle('off',!state.running);$('powerBtn').innerHTML='⏻ <span>'+(state.running?'ФЕРМА ВКЛ':'ФЕРМА ВЫКЛ')+'</span>';
- $('coolLevel').textContent='Уровень '+state.cooling;$('psuLevel').textContent='Уровень '+state.psu;$('softLevel').textContent='Уровень '+state.software;
- $('coolBtn').textContent=n(250*(state.cooling+1),0)+' G';$('psuBtn').textContent=n(350*(state.psu+1),0)+' G';$('softBtn').textContent=n(500*(state.software+1),0)+' G';
- $('coolBtn').disabled=state.coins<250*(state.cooling+1);$('psuBtn').disabled=state.coins<350*(state.psu+1);$('softBtn').disabled=state.coins<500*(state.software+1);
- $('btcRate').textContent='1 BTC = '+n(rateBTC(),0)+' G';$('ethRate').textContent='1 ETH = '+n(rateETH(),0)+' G';$('sellBtc').disabled=state.btc<=0;$('sellEth').disabled=state.eth<=0;
- drawRigs();renderShop();
-}
-function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+function renderMissions(){const container=$('missionsList');container.innerHTML='';let doneCount=0;missionDefs.forEach(m=>{const completed=state.claimed.includes(m.id);const ready=m.done(state);if(completed)doneCount++;const el=document.createElement('article');el.className='mission'+(completed?' done':'');const desc=completed?'Награда получена':ready?'Задание выполнено — можно забрать награду':m.desc;el.innerHTML='<span class="mission-icon">'+(completed?'✓':m.icon)+'</span><div class="mission-copy"><strong>'+m.title+'</strong><small>'+desc+'</small></div><span class="mission-reward">'+(completed?'ГОТОВО':'+'+m.reward+' G')+'</span>'+(ready&&!completed?'<button class="buy-btn claim-btn">Забрать</button>':'');const b=el.querySelector('.claim-btn');if(b)b.addEventListener('click',()=>{if(!m.done(state)||state.claimed.includes(m.id))return;state.claimed.push(m.id);state.coins+=m.reward;state.stats.earned+=m.reward;save();render();toast('Награда: +'+m.reward+' GCOIN');});container.appendChild(el);});$('achievementCount').textContent=doneCount+' / '+missionDefs.length;}
+function render(){const r=hourly(),h=calcHash(),w=calcWatts(),t=calcTemp(),p=r.gcoin;$('coins').textContent=n(state.coins);$('btc').textContent=n(state.btc,6);$('eth').textContent=n(state.eth,5);$('hash').textContent=n(h,0)+' MH/s';$('watts').textContent=n(w,0)+' W';$('temp').textContent=t+'°C';$('profit').textContent=(p>=0?'+':'')+n(p)+' G';$('profit').className=p>=0?'green':'';$('efficiency').textContent=n(w>0?h/w:0,2)+' MH/W';$('electricity').textContent=n(Math.max(0,w*.012*(1-state.eco*.05)))+' G';$('gpuCount').textContent=countGPU()+' GPU';$('status').textContent=state.running?'РАБОТАЕТ':'ВЫКЛЮЧЕНА';$('powerBtn').classList.toggle('off',!state.running);$('powerBtn').innerHTML='⏻ <span>'+(state.running?'ФЕРМА ВКЛ':'ФЕРМА ВЫКЛ')+'</span>';$('coolLevel').textContent='Уровень '+state.cooling;$('psuLevel').textContent='Уровень '+state.psu;$('softLevel').textContent='Уровень '+state.software;$('ecoLevel').textContent='Уровень '+state.eco;$('coolBtn').textContent=n(250*(state.cooling+1),0)+' G';$('psuBtn').textContent=n(350*(state.psu+1),0)+' G';$('softBtn').textContent=n(500*(state.software+1),0)+' G';$('ecoBtn').textContent=n(750*(state.eco+1),0)+' G';[['coolBtn',250,state.cooling],['psuBtn',350,state.psu],['softBtn',500,state.software],['ecoBtn',750,state.eco]].forEach(([id,base,level])=>$(id).disabled=state.coins<base*(level+1));$('btcRate').textContent='1 BTC = '+n(2500000,0)+' G';$('ethRate').textContent='1 ETH = '+n(145000,0)+' G';$('btcOwned').textContent='У тебя: '+n(state.btc,6)+' BTC';$('ethOwned').textContent='У тебя: '+n(state.eth,5)+' ETH';['sellBtc','sellAllBtc'].forEach(id=>$(id).disabled=state.btc<=0);['sellEth','sellAllEth'].forEach(id=>$(id).disabled=state.eth<=0);const next=missionDefs.find(m=>!state.claimed.includes(m.id));$('nextReward').textContent=next?next.title:'Все получены';const claimedToday=dayKey(state.dailyClaim)===dayKey(Date.now());$('dailyBtn').disabled=claimedToday;$('dailyBtn').textContent=claimedToday?'Получено':'Забрать';$('dailyText').textContent=claimedToday?'Бонус за сегодня уже получен. Возвращайся завтра.':'Получи ежедневный бонус в GCOIN.';$('streakText').textContent='Серия входов: '+state.streak+' '+(state.streak===1?'день':'дн.');drawRigs();renderShop();renderMissions();}
 function buyGPU(i){const g=gpuTypes[i];if(state.coins<g.cost)return toast('Недостаточно GCOIN');state.coins-=g.cost;state.gpus[i]++;save();render();toast(g.name+' добавлена в ферму');}
-function upgrade(key,cost,label){if(state.coins<cost)return toast('Недостаточно GCOIN');state.coins-=cost;state[key]++;save();render();toast(label+' улучшено');}
-$('powerBtn').addEventListener('click',()=>{state.running=!state.running;save();render();toast(state.running?'Майнинг запущен':'Ферма остановлена');});
-$('coolBtn').addEventListener('click',()=>upgrade('cooling',250*(state.cooling+1),'Охлаждение'));
-$('psuBtn').addEventListener('click',()=>upgrade('psu',350*(state.psu+1),'Блок питания'));
-$('softBtn').addEventListener('click',()=>upgrade('software',500*(state.software+1),'Майнер'));
-$('sellBtc').addEventListener('click',()=>{const a=state.btc*.25;if(a<=0)return;state.btc-=a;state.coins+=a*rateBTC();save();render();toast('Продано '+n(a,6)+' BTC');});
-$('sellEth').addEventListener('click',()=>{const a=state.eth*.25;if(a<=0)return;state.eth-=a;state.coins+=a*rateETH();save();render();toast('Продано '+n(a,5)+' ETH');});
-function tick(){if(state.running){const r=hourly();state.btc+=r.btc/3600;state.eth+=r.eth/3600;state.coins=Math.max(0,state.coins+r.gcoin/3600);}render();save();}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){const now=Date.now(),elapsed=Math.min(28800,Math.max(0,(now-(state.last||now))/1000));if(state.running){const r=hourly();state.btc+=r.btc/3600*elapsed;state.eth+=r.eth/3600*elapsed;state.coins=Math.max(0,state.coins+r.gcoin/3600*elapsed);}save();render();}});
-document.querySelectorAll('.mobile-nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.mobile-nav a').forEach(x=>x.classList.remove('active'));a.classList.add('active');}));
+function upgrade(key,base,label){const cost=base*(state[key]+1);if(state.coins<cost)return toast('Недостаточно GCOIN');state.coins-=cost;state[key]++;save();render();toast(label+' улучшено');}
+$('powerBtn').addEventListener('click',()=>{state.running=!state.running;lastTick=Date.now();save();render();toast(state.running?'Майнинг запущен':'Ферма остановлена');});
+$('coolBtn').addEventListener('click',()=>upgrade('cooling',250,'Охлаждение'));$('psuBtn').addEventListener('click',()=>upgrade('psu',350,'Блок питания'));$('softBtn').addEventListener('click',()=>upgrade('software',500,'Майнер'));$('ecoBtn').addEventListener('click',()=>upgrade('eco',750,'Энергоэффективность'));
+function sell(kind,all){const isBtc=kind==='btc',key=isBtc?'btc':'eth',rate=isBtc?2500000:145000;const amount=all?state[key]:state[key]*.25;if(amount<=0)return;state[key]=Math.max(0,state[key]-amount);const earned=amount*rate;state.coins+=earned;state.stats.earned+=earned;save();render();toast('Получено '+n(earned)+' GCOIN');}
+$('sellBtc').addEventListener('click',()=>sell('btc',false));$('sellEth').addEventListener('click',()=>sell('eth',false));$('sellAllBtc').addEventListener('click',()=>sell('btc',true));$('sellAllEth').addEventListener('click',()=>sell('eth',true));
+function dayKey(t){const d=new Date(t);return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate();}
+$('dailyBtn').addEventListener('click',()=>{const today=dayKey(Date.now());if(dayKey(state.dailyClaim)===today)return toast('Бонус уже получен');const yesterday=dayKey(Date.now()-86400000);state.streak=dayKey(state.dailyClaim)===yesterday?state.streak+1:1;const reward=100+Math.min(7,state.streak-1)*50;state.dailyClaim=Date.now();state.coins+=reward;state.stats.earned+=reward;save();render();toast('Ежедневный бонус: +'+reward+' GCOIN');});
+$('exportSave').addEventListener('click',()=>{try{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='gpu-mining-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Резервная копия сохранена в файл');}catch(e){toast('Не удалось экспортировать сохранение');}});
+$('importSave').addEventListener('click',()=>$('importFile').click());
+$('importFile').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const parsed=JSON.parse(await f.text());if(!parsed||!Array.isArray(parsed.gpus)||parsed.gpus.length!==4)throw new Error('bad save');state=normalize(parsed);save();render();toast('Сохранение импортировано');}catch(err){toast('Файл сохранения не распознан');}e.target.value='';});
+$('resetSave').addEventListener('click',()=>{if(!confirm('Точно начать заново? Текущий прогресс будет удалён с этого устройства.'))return;state=normalize({...defaults,last:Date.now(),started:Date.now()});try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(OLD_KEY);}catch(e){}save();render();switchTab('farm');toast('Новая ферма создана');});
+function accrue(seconds){if(seconds<=0||!state.running)return;const sec=Math.min(seconds,28800),r=hourly();state.btc+=r.btc*sec/3600;state.eth+=r.eth*sec/3600;state.coins=Math.max(0,state.coins+r.gcoin*sec/3600);state.stats.seconds+=sec;}
+function tick(){const now=Date.now(),seconds=Math.max(0,(now-lastTick)/1000);lastTick=now;accrue(seconds);render();save();}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastTick=Date.now();render();save();}});
+window.addEventListener('pagehide',save);
+try{const hash=location.hash.slice(1);if(['farm','hardware','upgrades','market','missions'].includes(hash))switchTab(hash);}catch(e){}
 render();setInterval(tick,1000);
 })();
