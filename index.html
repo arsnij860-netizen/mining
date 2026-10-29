@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0b111a">
+<title>GPU Mining Simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar"><div class="brand"><span class="brand-icon">▦</span><div><strong>GPU MINING</strong><small>SIMULATOR / v1.0</small></div></div><button id="powerBtn" class="power">⏻ <span>ФЕРМА ВКЛ</span></button></header>
+<main>
+<section class="stats">
+<article class="stat"><span class="muted">БАЛАНС GCOIN</span><strong id="coins">1 250.00</strong><small>◆ игровая валюта</small></article>
+<article class="stat"><span class="muted">BTC ДОБЫТО</span><strong id="btc">0.000000</strong><small>₿ Bitcoin · игровой</small></article>
+<article class="stat"><span class="muted">ETH ДОБЫТО</span><strong id="eth">0.00000</strong><small>◆ Ethereum · игровой</small></article>
+</section>
+<section class="panel">
+<div class="section-head"><div><span class="eyebrow">01 / ТВОЯ МАЙНИНГ-ФЕРМА</span><h1>Серверная <span class="green">#001</span></h1></div><span class="live"><i></i> <span id="status">РАБОТАЕТ</span></span></div>
+<div class="farm-room"><div class="room-label">MINING ROOM / A</div><div id="rigs" class="rigs"></div><div class="floor-label">TEMP CONTROL • GPU RACKS</div></div>
+<div class="metrics"><div><span class="muted">ХЕШРЕЙТ</span><strong id="hash">124 MH/s</strong></div><div><span class="muted">ПОТРЕБЛЕНИЕ</span><strong id="watts">220 W</strong></div><div><span class="muted">ТЕМПЕРАТУРА</span><strong id="temp">62°C</strong></div><div><span class="muted">ПРИБЫЛЬ / ЧАС</span><strong id="profit" class="green">+18.40 G</strong></div></div>
+</section>
+<section class="panel"><div class="section-head"><div><span class="eyebrow">02 / УПРАВЛЕНИЕ</span><h2>Оборудование</h2></div><span id="gpuCount" class="pill">2 GPU</span></div><div id="shop" class="shop"></div></section>
+<section class="panel"><div class="section-head"><div><span class="eyebrow">03 / ОПТИМИЗАЦИЯ</span><h2>Улучшения фермы</h2></div></div>
+<div class="upgrade-grid">
+<article class="upgrade"><div class="upgrade-icon">❄</div><div class="upgrade-info"><strong>Усиленное охлаждение</strong><p>Снижает температуру GPU на 8°C</p><small id="coolLevel">Уровень 0</small></div><button id="coolBtn" class="buy-btn">250 G</button></article>
+<article class="upgrade"><div class="upgrade-icon">⚡</div><div class="upgrade-info"><strong>Блок питания PRO</strong><p>Снижает энергопотери на 10%</p><small id="psuLevel">Уровень 0</small></div><button id="psuBtn" class="buy-btn">350 G</button></article>
+<article class="upgrade"><div class="upgrade-icon">⌁</div><div class="upgrade-info"><strong>Оптимизация майнера</strong><p>+15% к хешрейту</p><small id="softLevel">Уровень 0</small></div><button id="softBtn" class="buy-btn">500 G</button></article>
+</div></section>
+<section class="panel"><div class="section-head"><div><span class="eyebrow">04 / ВИРТУАЛЬНЫЙ РЫНОК</span><h2>Продать монеты</h2></div><span class="pill">Игровые курсы</span></div>
+<div class="market-row"><div><strong>₿ Bitcoin (BTC)</strong><small id="btcRate">1 BTC = 2 500 000 G</small></div><button id="sellBtc" class="sell-btn">Продать 25%</button></div>
+<div class="market-row"><div><strong>◆ Ethereum (ETH)</strong><small id="ethRate">1 ETH = 145 000 G</small></div><button id="sellEth" class="sell-btn">Продать 25%</button></div>
+<p class="footnote">Курсы и доходы существуют только внутри игры и не отражают реальные рыночные цены.</p></section>
+<div class="bottom-note"><span>GPU MINING SIMULATOR</span><span>АВТОСОХРАНЕНИЕ <i class="green">●</i></span></div>
+</main>
+<nav class="mobile-nav"><a class="active" href="#">▦<small>Ферма</small></a><a href="#shop">▤<small>Магазин</small></a><a href="#coolBtn">❄<small>Улучшения</small></a></nav>
+<div id="toast" class="toast" role="status"></div><script src="game.js"></script>
+</body></html>
